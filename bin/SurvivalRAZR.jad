@@ -1,0 +1,8 @@
+MIDlet-1: SurvivalRAZR, SurvivalRAZR.png, SurvivalMIDlet
+MIDlet-Jar-Size: 13547
+MIDlet-Jar-URL: SurvivalRAZR.jar
+MIDlet-Name: SurvivalRAZR
+MIDlet-Vendor: Unknown
+MIDlet-Version: 1.0
+MicroEdition-Configuration: CLDC-1.0
+MicroEdition-Profile: MIDP-1.0
