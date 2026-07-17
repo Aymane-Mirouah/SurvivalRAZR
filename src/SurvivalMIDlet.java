@@ -33,20 +33,27 @@ class SurvivalCanvas extends Canvas implements CommandListener {
     private static final int COLOR_SELECTED = 0x3a6025;
     private static final int COLOR_BORDER   = 0x4a7a20;
 
-    private static final int KEY_SOFT_LEFT  = -6;
-    private static final int KEY_SOFT_RIGHT = -7;
-
     private int screen        = 0;
     private int selectedItem  = 0;
+    private int menuScroll    = 0;
     private int subSelected   = 0;
     private int contentScroll = 0;
+    private int sosMenu = 0;
+    private boolean sosActive = false;
+    private boolean flashOn   = false;
+    private Thread  sosThread = null;
+
+    private static final int DOT      = 150;
+    private static final int DASH     = 450;
+    private static final int GAP      = 150;
+    private static final int CHAR_GAP = 450;
 
     private Command exitCommand;
 
     private static final String[] MAIN_MENU = {
         "1. Fire", "2. Water", "3. Food",
         "4. Shelter", "5. Navigation",
-        "6. First Aid", "7. About"
+        "6. First Aid", "7. SOS Alert", "8. About"
     };
 
     private static final String[][] SUB_MENUS = {
@@ -160,7 +167,7 @@ class SurvivalCanvas extends Canvas implements CommandListener {
               "- Morning dew on leaves",
               "- Running streams",
               "- Springs",
-              "- Digging near dry riverbeds",
+              "- Dig near dry riverbeds",
               "RISKY SOURCES:",
               "- Stagnant ponds",
               "- Slow moving water",
@@ -173,7 +180,7 @@ class SurvivalCanvas extends Canvas implements CommandListener {
               "should be purified!" },
             { "STILL CONSTRUCTION",
               "SOLAR STILL:",
-              "Digs water from ground.",
+              "Gets water from ground.",
               "1. Dig hole 90cm wide",
               "   60cm deep",
               "2. Place container",
@@ -309,7 +316,6 @@ class SurvivalCanvas extends Canvas implements CommandListener {
               "and bacteria.",
               "Boil when possible.",
               "Roast over fire if not.",
-              "PRESERVING FOOD:",
               "DRYING (jerky):",
               "Cut meat into thin strips.",
               "Hang near fire or in sun.",
@@ -321,9 +327,8 @@ class SurvivalCanvas extends Canvas implements CommandListener {
               "- Keep food off ground",
               "- Hang from tree branch",
               "  away from camp",
-              "- Keep away from water",
               "TIP:Smell food before",
-              "eating. Bad smell = bad food." }
+              "eating. Bad smell = bad!" }
         },
         // SHELTER
         {
@@ -360,8 +365,7 @@ class SurvivalCanvas extends Canvas implements CommandListener {
               "Cover with branches.",
               "Good all-round shelter.",
               "TARP SHELTER:",
-              "If you have a tarp,",
-              "tie between two trees.",
+              "Tie tarp between trees.",
               "Many configurations.",
               "TIP:Insulate the floor",
               "first. Ground steals",
@@ -403,10 +407,10 @@ class SurvivalCanvas extends Canvas implements CommandListener {
               "Wait 2 hours to harden.",
               "Hollow out inside.",
               "WARNING:Mark your",
-              "snow shelter so people",
+              "snow shelter so rescuers",
               "do not step on it.",
               "TIP:Always have",
-              "ventilation hole!" }
+              "a ventilation hole!" }
         },
         // NAVIGATION
         {
@@ -483,10 +487,9 @@ class SurvivalCanvas extends Canvas implements CommandListener {
               "Use watch, stars, or",
               "shadow tip method.",
               "TIP:Always check map",
-              "against terrain features",
-              "like rivers and hills.",
+              "against terrain features.",
               "WARNING:Metal objects",
-              "affect compass readings." }
+              "affect compass readings!" }
         },
         // FIRST AID
         {
@@ -573,7 +576,6 @@ class SurvivalCanvas extends Canvas implements CommandListener {
               "be fatal. Seek help!" },
             { "HEAT & COLD",
               "HEAT EXHAUSTION:",
-              "Symptoms:",
               "- Heavy sweating",
               "- Cold pale skin",
               "- Weakness, dizziness",
@@ -583,7 +585,6 @@ class SurvivalCanvas extends Canvas implements CommandListener {
               "- Apply cool wet cloths",
               "- Drink water slowly",
               "HEAT STROKE (EMERGENCY):",
-              "Symptoms:",
               "- Hot DRY skin",
               "- Confusion",
               "- Loss of consciousness",
@@ -591,14 +592,11 @@ class SurvivalCanvas extends Canvas implements CommandListener {
               "- Cool body immediately",
               "- Wet cloths + fanning",
               "HYPOTHERMIA:",
-              "Symptoms:",
-              "- Shivering",
-              "- Confusion",
+              "- Shivering, confusion",
               "- Slow pulse",
               "Treatment:",
               "- Get dry and warm",
               "- Warm core first",
-              "- Warm fluids if conscious",
               "WARNING:Remove wet",
               "clothing immediately!" }
         }
@@ -609,7 +607,7 @@ class SurvivalCanvas extends Canvas implements CommandListener {
         "SURVIVAL MANUAL",
         "For Motorola RAZR V3",
         "",
-        "VERSION: 1.0",
+        "VERSION: 1.1",
         "LICENSE: GPLv3",
         "",
         "CONTENT FROM:",
@@ -622,7 +620,7 @@ class SurvivalCanvas extends Canvas implements CommandListener {
         "by ligi (GPLv3)",
         "",
         "J2ME PORT BY:",
-        "Aymane",
+        "Aymane Mirouah",
         "Marrakech, Morocco",
         "2026",
         "",
@@ -645,14 +643,29 @@ class SurvivalCanvas extends Canvas implements CommandListener {
     protected void paint(Graphics g) {
         int w = getWidth();
         int h = getHeight();
+
+        // SOS flash overrides everything
+        if (sosActive && flashOn) {
+            g.setColor(0xffffff);
+            g.fillRect(0, 0, w, h);
+            g.setColor(0xff0000);
+            g.setFont(Font.getFont(Font.FACE_MONOSPACE, Font.STYLE_BOLD, Font.SIZE_LARGE));
+            g.drawString("SOS", w/2, h/2 - 20, Graphics.TOP | Graphics.HCENTER);
+            g.setFont(bold());
+            g.drawString("... --- ...", w/2, h/2 + 10, Graphics.TOP | Graphics.HCENTER);
+            return;
+        }
+
         g.setColor(COLOR_BG);
         g.fillRect(0, 0, w, h);
         g.setColor(COLOR_BORDER);
         g.drawRect(1, 1, w-3, h-3);
+
         if      (screen == 0) drawMainMenu(g, w, h);
         else if (screen == 1) drawSubMenu(g, w, h);
         else if (screen == 2) drawContent(g, w, h);
         else if (screen == 3) drawAbout(g, w, h);
+        else if (screen == 4) drawSOS(g, w, h);
     }
 
     private Font bold()  { return Font.getFont(Font.FACE_MONOSPACE, Font.STYLE_BOLD,  Font.SIZE_SMALL); }
@@ -681,11 +694,13 @@ class SurvivalCanvas extends Canvas implements CommandListener {
 
     private void drawMainMenu(Graphics g, int w, int h) {
         drawHeader(g, "SURVIVAL MANUAL", w);
-        int itemH  = 18;
-        int startY = 28;
-        for (int i = 0; i < MAIN_MENU.length; i++) {
-            int y = startY + (i * itemH);
-            if (i == selectedItem) {
+        int itemH    = 18;
+        int startY   = 28;
+        int visible  = (h - startY - 22) / itemH;
+        for (int i = 0; i < visible && (i + menuScroll) < MAIN_MENU.length; i++) {
+            int idx = i + menuScroll;
+            int y   = startY + (i * itemH);
+            if (idx == selectedItem) {
                 g.setColor(COLOR_SELECTED);
                 g.fillRect(4, y, w-8, itemH);
                 g.setColor(COLOR_YELLOW);
@@ -694,7 +709,18 @@ class SurvivalCanvas extends Canvas implements CommandListener {
                 g.setColor(COLOR_BODY);
                 g.setFont(plain());
             }
-            g.drawString(MAIN_MENU[i], 10, y+2, Graphics.TOP | Graphics.LEFT);
+            g.drawString(MAIN_MENU[idx], 10, y+2, Graphics.TOP | Graphics.LEFT);
+        }
+        // scroll indicators
+        if (menuScroll > 0) {
+            g.setColor(COLOR_HDR_TEXT);
+            g.setFont(bold());
+            g.drawString("^", w-10, startY, Graphics.TOP | Graphics.LEFT);
+        }
+        if (menuScroll + visible < MAIN_MENU.length) {
+            g.setColor(COLOR_HDR_TEXT);
+            g.setFont(bold());
+            g.drawString("v", w-10, h-34, Graphics.TOP | Graphics.LEFT);
         }
         drawFooter(g, w, h, "CTR=SELECT", "0=EXIT");
     }
@@ -750,8 +776,6 @@ class SurvivalCanvas extends Canvas implements CommandListener {
             }
             y += lineH;
         }
-
-        // scroll indicators
         if (contentScroll > 0) {
             g.setColor(COLOR_HDR_TEXT);
             g.setFont(bold());
@@ -771,6 +795,195 @@ class SurvivalCanvas extends Canvas implements CommandListener {
         drawFooter(g, w, h, "UP/DN=SCROLL", "0=BACK");
     }
 
+    
+    private void drawSOS(Graphics g, int w, int h) {
+        if (sosActive && flashOn) return; // handled in paint()
+
+        drawHeader(g, "SOS ALERT", w);
+
+        if (sosMenu == 0) {
+            // sub menu
+            int itemH  = 22;
+            int startY = 32;
+
+            // option 1
+            if (0 == subSelected) {
+                g.setColor(COLOR_SELECTED);
+                g.fillRect(4, startY, w-8, itemH);
+                g.setColor(COLOR_YELLOW);
+                g.setFont(bold());
+            } else {
+                g.setColor(COLOR_BODY);
+                g.setFont(plain());
+            }
+            g.drawString("1. Start SOS Signal", 10, startY+3, Graphics.TOP | Graphics.LEFT);
+
+            // option 2
+            if (1 == subSelected) {
+                g.setColor(COLOR_SELECTED);
+                g.fillRect(4, startY+itemH, w-8, itemH);
+                g.setColor(COLOR_YELLOW);
+                g.setFont(bold());
+            } else {
+                g.setColor(COLOR_BODY);
+                g.setFont(plain());
+            }
+            g.drawString("2. Morse Chart", 10, startY+itemH+3, Graphics.TOP | Graphics.LEFT);
+
+            drawFooter(g, w, h, "CTR=SELECT", "0=BACK");
+
+        } else if (sosMenu == 1) {
+            // SOS signal screen
+            g.setColor(COLOR_RED);
+            g.setFont(Font.getFont(Font.FACE_MONOSPACE, Font.STYLE_BOLD, Font.SIZE_LARGE));
+            g.drawString("SOS", w/2, 35, Graphics.TOP | Graphics.HCENTER);
+            g.setColor(COLOR_YELLOW);
+            g.setFont(bold());
+            g.drawString("... --- ...", w/2, 70, Graphics.TOP | Graphics.HCENTER);
+            g.setColor(COLOR_BORDER);
+            g.drawLine(4, 88, w-4, 88);
+            
+            if (sosActive) {
+                g.setColor(COLOR_RED);
+                g.setFont(bold());
+                g.drawString("BROADCASTING...", w/2, 95, Graphics.TOP | Graphics.HCENTER);
+                g.setColor(COLOR_BODY);
+                g.setFont(plain());
+                g.drawString("Keep phone visible", w/2, 112, Graphics.TOP | Graphics.HCENTER);
+                drawFooter(g, w, h, "CTR=STOP", "0=BACK");
+            } else {
+                g.setColor(COLOR_HDR_TEXT);
+                g.setFont(bold());
+                g.drawString("Press CENTER", w/2, 95, Graphics.TOP | Graphics.HCENTER);
+                g.drawString("to start SOS signal", w/2, 112, Graphics.TOP | Graphics.HCENTER);
+                drawFooter(g, w, h, "CTR=START", "0=BACK");
+            }
+
+        } else if (sosMenu == 2) {
+            // Morse chart - RAZR V3 176px width optimized
+            String[] LETTERS = {
+                "A:.-", "B:-...", "C:-.-.", "D:-..",
+                "E:.", "F:..-.","G:--.", "H:....",
+                "I:..", "J:.---", "K:-.-", "L:.-..",
+                "M:--", "N:-.", "O:---", "P:.--.",
+                "Q:--.-", "R:.-.", "S:...", "T:-",
+                "U:..-", "V:...-", "W:.--", "X:-..-",
+                "Y:-.--", "Z:--..",
+                "0:-----", "1:.----", "2:..---",
+                "3:...--", "4:....-", "5:.....",
+                "6:-....", "7:--...", "8:---..",
+                "9:----."
+            };
+
+            // Force SMALL fonts so the grid fits
+            Font fontBold = Font.getFont(Font.FACE_SYSTEM, Font.STYLE_BOLD, Font.SIZE_SMALL);
+            Font fontPlain = Font.getFont(Font.FACE_SYSTEM, Font.STYLE_PLAIN, Font.SIZE_SMALL);
+
+            int lineH  = fontBold.getHeight() + 2; 
+            int startY = 28;
+            int col2   = (w / 2) + 2; 
+            int visibleRows = (h - startY - 22) / lineH;
+
+            // Scroll by rows (multiplier of 2) to stop visual jumping
+            int startIndex = contentScroll * 2;
+
+            for (int i = 0; i < visibleRows * 2 && (startIndex + i) < LETTERS.length; i++) {
+                int idx = startIndex + i;
+                int col = i % 2;
+                int row = i / 2;
+                int px  = (col == 0) ? 4 : col2;
+                int py  = startY + (row * lineH);
+
+                if (py + lineH > h - 22) break;
+
+                String item  = LETTERS[idx];
+                int    colon = item.indexOf(':');
+                String letter = item.substring(0, colon + 1);
+                String morse = item.substring(colon + 1);
+
+                g.setColor(COLOR_YELLOW);
+                g.setFont(fontBold);
+                g.drawString(letter, px, py, Graphics.TOP | Graphics.LEFT);
+
+                // Dynamic spacing based on letter width
+                int textOffset = fontBold.stringWidth(letter) + 2;
+
+                g.setColor(COLOR_HDR_TEXT);
+                g.setFont(fontPlain);
+                g.drawString(morse, px + textOffset, py, Graphics.TOP | Graphics.LEFT);
+            }
+
+            // Scroll indicators
+            g.setColor(COLOR_HDR_TEXT);
+            g.setFont(fontBold);
+            if (contentScroll > 0) {
+                g.drawString("^", w - 12, startY, Graphics.TOP | Graphics.LEFT);
+            }
+            if (startIndex + (visibleRows * 2) < LETTERS.length) {
+                g.drawString("v", w - 12, h - 34, Graphics.TOP | Graphics.LEFT);
+            }
+            
+            drawFooter(g, w, h, "UP/DN=SCROLL", "0=BACK");
+        }
+    }
+
+    private void startSOS() {
+        sosActive = true;
+        sosThread = new Thread(new Runnable() {
+            public void run() {
+                try {
+                    while (sosActive) {
+                        // S = ...
+                        for (int i = 0; i < 3 && sosActive; i++) {
+                            flash(true);
+                            Thread.sleep(DOT);
+                            flash(false);
+                            Thread.sleep(GAP);
+                        }
+                        Thread.sleep(CHAR_GAP);
+                        // O = ---
+                        for (int i = 0; i < 3 && sosActive; i++) {
+                            flash(true);
+                            Thread.sleep(DASH);
+                            flash(false);
+                            Thread.sleep(GAP);
+                        }
+                        Thread.sleep(CHAR_GAP);
+                        // S = ...
+                        for (int i = 0; i < 3 && sosActive; i++) {
+                            flash(true);
+                            Thread.sleep(DOT);
+                            flash(false);
+                            Thread.sleep(GAP);
+                        }
+                        Thread.sleep(2000);
+                    }
+                } catch (InterruptedException e) {}
+                sosActive = false;
+                flashOn   = false;
+                repaint();
+            }
+        });
+        sosThread.start();
+    }
+
+    private void flash(boolean on) {
+        flashOn = on;
+        // try beep on flash
+        if (on) {
+            try {
+                javax.microedition.lcdui.AlertType.ALARM.playSound(display);
+            } catch (Exception e) {}
+        }
+        repaint();
+    }
+
+    private void stopSOS() {
+        sosActive = false;
+        flashOn   = false;
+        repaint();
+    }
+
     private void drawAbout(Graphics g, int w, int h) {
         drawHeader(g, ABOUT_CONTENT[0], w);
         drawScrollableLines(g, ABOUT_CONTENT, 1, w, h);
@@ -781,16 +994,20 @@ class SurvivalCanvas extends Canvas implements CommandListener {
         int action = getGameAction(keyCode);
 
         if (screen == 0) {
-            if (action == UP && selectedItem > 0)
+            if (action == UP && selectedItem > 0) {
                 selectedItem--;
-            else if (action == DOWN && selectedItem < MAIN_MENU.length-1)
+                if (selectedItem < menuScroll) menuScroll--;
+            } else if (action == DOWN && selectedItem < MAIN_MENU.length-1) {
                 selectedItem++;
-            else if (action == FIRE) {
-                if (selectedItem == 6) { screen = 3; contentScroll = 0; }
+                int visible = (getHeight() - 50) / 18;
+                if (selectedItem >= menuScroll + visible) menuScroll++;
+            } else if (action == FIRE) {
+                if      (selectedItem == 6) { screen = 4; }
+                else if (selectedItem == 7) { screen = 3; contentScroll = 0; }
                 else { screen = 1; subSelected = 0; }
-            }
-            else if (keyCode == KEY_NUM0)
+            } else if (keyCode == KEY_NUM0) {
                 midlet.notifyDestroyed();
+            }
 
         } else if (screen == 1) {
             String[] menu = SUB_MENUS[selectedItem];
@@ -827,6 +1044,32 @@ class SurvivalCanvas extends Canvas implements CommandListener {
                 contentScroll++;
             else if (keyCode == KEY_NUM0)
                 screen = 0;
+
+        } else if (screen == 4) {
+            if (sosMenu == 0) {
+                if (action == UP && subSelected > 0)   subSelected--;
+                else if (action == DOWN && subSelected < 1) subSelected++;
+                else if (action == FIRE) {
+                    if (subSelected == 0) { sosMenu = 1; }
+                    else { sosMenu = 2; contentScroll = 0; }
+                }
+                else if (keyCode == KEY_NUM0) { screen = 0; sosMenu = 0; subSelected = 0; }
+            } else if (sosMenu == 1) {
+                if (action == FIRE) {
+                    if (sosActive) stopSOS();
+                    else startSOS();
+                } else if (keyCode == KEY_NUM0) {
+                    stopSOS();
+                    sosMenu = 0;
+                }
+            } else if (sosMenu == 2) {
+                int visible = (getHeight() - 50) / 14;
+                int maxScroll = 36 - visible * 2;
+                if (maxScroll < 0) maxScroll = 0;
+                if (action == UP && contentScroll > 0)        contentScroll -= 2;
+                else if (action == DOWN && contentScroll < maxScroll) contentScroll += 2;
+                else if (keyCode == KEY_NUM0) { sosMenu = 0; contentScroll = 0; }
+            }
         }
 
         repaint();
