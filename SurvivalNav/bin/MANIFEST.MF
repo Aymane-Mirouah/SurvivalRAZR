@@ -1,0 +1,6 @@
+MIDlet-1: SurvivalNav,  SurvivalNav.png, NavMIDlet
+MIDlet-Name: SurvivalNav
+MIDlet-Vendor: Unknown
+MIDlet-Version: 1.0
+MicroEdition-Configuration: CLDC-1.1
+MicroEdition-Profile: MIDP-2.0
