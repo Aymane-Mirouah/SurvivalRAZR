@@ -23,9 +23,8 @@ Technology has always pushed us to discover more about the world and about ourse
 
 This is a "silly" project on paper: porting a survival app to a 20-year-old flip phone that nobody uses anymore. But what's stopping anyone from doing it? We live in an era where you can build almost anything with the tools available to you. So I took advantage of that.
 
-This started as a summer project out of curiosity. It turned into a working app, running on real hardware from 2004, built step by step from scratch. No shortcuts.
+This started as a summer project out of curiosity. It turned into a working app, running on real hardware from 2004, built step by step from scratch.
 
-If you're reading this, go build something. Doesn't matter how small or "pointless" it seems.
 
 ## Features
 
