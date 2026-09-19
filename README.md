@@ -1,6 +1,4 @@
-# SurvivalRAZR 📟
-
-A Java ME (J2ME) port of the Offline Survival Manual, built from scratch for the **Motorola RAZR V3** (2004).
+# SurvivalRAZR 
 
 ## Screenshots
 
